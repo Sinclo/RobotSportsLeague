@@ -1,6 +1,5 @@
 package robotSportsLeague;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,13 +29,48 @@ public class MySQLTests {
     @Resource
     JdbcRobotTeamRepository jdbcRobotTeamRepo = new JdbcRobotTeamRepository(jdbc);
 
+    @Test
+    public void insertNewEntryAndVerifyData(){
+
+        String expectedTeamName = "Team Name";
+        String expectedFirstName = "First Name";
+        String expectedLastName = "Last Name";
+
+        RobotTeam insertEntry = new RobotTeam();
+        insertEntry.setTeamName(expectedTeamName);
+        insertEntry.setOwnerFirstName(expectedFirstName);
+        insertEntry.setOwnerLastName(expectedLastName);
+        jdbcRobotTeamRepo.save(insertEntry);
+
+        Assert.assertNotNull(jdbcRobotTeamRepo.findOne(expectedTeamName).getId());
+        Assert.assertEquals(expectedTeamName, jdbcRobotTeamRepo.findOne(expectedTeamName).getTeamName());
+        Assert.assertEquals(expectedFirstName, jdbcRobotTeamRepo.findOne(expectedTeamName).getOwnerFirstName());
+        Assert.assertEquals(expectedLastName, jdbcRobotTeamRepo.findOne(expectedTeamName).getOwnerLastName());
+        Assert.assertNotNull(jdbcRobotTeamRepo.findOne(expectedTeamName).getCreateDate());
+        Assert.assertNotNull(jdbcRobotTeamRepo.findOne(expectedTeamName).getLastUpdatedDate());
+    }
     @Test(expected = DuplicateKeyException.class)
     public void preventDuplicateTeamNames(){
+
+        String expectedTeamName = "Team Name";
+        String expectedFirstName1 = "First Name";
+        String expectedLastName1 = "Last Name";
+        String expectedFirstName2 = "2nd First Name";
+        String expectedLastName2 = "2nd Last Name";
+
         RobotTeam insertEntry = new RobotTeam();
-        insertEntry.setTeamName("Team Name");
-        insertEntry.setOwnerFirstName("First Name");
-        insertEntry.setOwnerLastName("Last Name");
+
+        // Create first team with team owner
+        insertEntry.setTeamName(expectedTeamName);
+        insertEntry.setOwnerFirstName(expectedFirstName1);
+        insertEntry.setOwnerLastName(expectedLastName1);
         jdbcRobotTeamRepo.save(insertEntry);
+
+        // Create second team with different team owner, but same team name.
+        // Assert DuplicateKeyException response is returned
+        insertEntry.setTeamName(expectedTeamName);
+        insertEntry.setOwnerFirstName(expectedFirstName2);
+        insertEntry.setOwnerLastName(expectedLastName2);
         jdbcRobotTeamRepo.save(insertEntry);
     }
 
@@ -93,67 +127,38 @@ public class MySQLTests {
         Assert.assertTrue("'createdate' is invalid", getInsertedCreateDate.contains(dateTimeFormat.toString()));
     }
 
-    @Ignore
     @Test
     public void updateDateOnUpdate() throws InterruptedException{
-        // Get current date & time
-        LocalDateTime dateTime1 = LocalDateTime.now();
 
-        // Reformat current date & time to exclude nanoseconds
-        LocalDateTime dateTimeFormat1 = LocalDateTime.of(dateTime1.getYear(), dateTime1.getMonth(),
-                dateTime1.getDayOfMonth(), dateTime1.getHour(),
-                dateTime1.getMinute(), dateTime1.getSecond());
+        //Create new database entry
+        RobotTeam robotTeam = new RobotTeam();
+        robotTeam.setTeamName("Team Name");
+        robotTeam.setOwnerFirstName("First Name");
+        robotTeam.setOwnerLastName("Last Name");
+        jdbcRobotTeamRepo.save(robotTeam);
 
-        RobotTeam insertEntry = new RobotTeam();
-        insertEntry.setTeamName("Team Name");
-        insertEntry.setOwnerFirstName("First Name");
-        insertEntry.setOwnerLastName("Last Name");
-        jdbcRobotTeamRepo.save(insertEntry);
-
-        // Retrieve data from 'createdate' column of the INSERT query above
-        String getInsertedTeamName1 = insertEntry.getTeamName();
-        String getInsertedCreateDate1 = jdbcRobotTeamRepo.findOne(getInsertedTeamName1).getCreateDate().toString();
-        String getInsertedUpdateDate1 = jdbcRobotTeamRepo.findOne(getInsertedTeamName1).getLastUpdatedDate().toString();
-
-        // Verify that createDate and updateDate were generated upon insert (excluding nanoseconds)
-        Assert.assertTrue("'createdate' is invalid", getInsertedCreateDate1.contains(dateTimeFormat1.toString()));
-        Assert.assertTrue("'lastupdateddate' is invalid", getInsertedUpdateDate1.contains(dateTimeFormat1.toString()));
-
-        System.out.println(jdbcRobotTeamRepo.findAll().toString());
+        // Retrieve 'createDate' and 'lastUpdated' values from the INSERT entry above
+        String insertedTeamName = robotTeam.getTeamName();
+        LocalDateTime createDate1 = jdbcRobotTeamRepo.findOne(insertedTeamName).getCreateDate();
+        LocalDateTime updateDate1 = jdbcRobotTeamRepo.findOne(insertedTeamName).getLastUpdatedDate();
 
         // Wait for a little while
         Thread.sleep(1500);
 
-        // Get current date & time
-        LocalDateTime dateTime2 = LocalDateTime.now();
+        // Get new update date & time
+        LocalDateTime expectedUpdateDate = LocalDateTime.now();
 
-        // Reformat current date & time to exclude nanoseconds
-        LocalDateTime dateTimeFormat2 = LocalDateTime.of(dateTime2.getYear(), dateTime2.getMonth(),
-                dateTime2.getDayOfMonth(), dateTime2.getHour(),
-                dateTime2.getMinute(), dateTime2.getSecond());
+        robotTeam.setOwnerFirstName("New First Name");
+        robotTeam.setOwnerLastName("New Last Name");
+        robotTeam.setLastUpdatedDate(expectedUpdateDate);
+        jdbcRobotTeamRepo.update(robotTeam);
 
-        insertEntry.setOwnerFirstName("New First Name");
-        insertEntry.setOwnerLastName("New Last Name");
+        // Retrieve 'createDate' and 'lastUpdated' values from the UPDATE entry above
+        LocalDateTime createDate2 = jdbcRobotTeamRepo.findOne(insertedTeamName).getCreateDate();
+        LocalDateTime updateDate2 = jdbcRobotTeamRepo.findOne(insertedTeamName).getLastUpdatedDate();
 
-        jdbc.update("UPDATE SportsTeam SET ownerfirstname = ?, ownerlastname = ? " +
-                        "WHERE teamname = ?",
-                insertEntry.getOwnerFirstName(),
-                insertEntry.getOwnerLastName(),
-                insertEntry.getTeamName());
-
-        System.out.println(insertEntry.getOwnerFirstName());
-        System.out.println(insertEntry.getOwnerLastName());
-        System.out.println(dateTimeFormat1.toString());
-        System.out.println(dateTimeFormat2.toString());
-        System.out.println(jdbcRobotTeamRepo.findAll().toString());
-
-        // Retrieve data from 'createdate' column of the INSERT query above
-        String getInsertedTeamName2 = insertEntry.getTeamName();
-        String getInsertedCreateDate2 = jdbcRobotTeamRepo.findOne(getInsertedTeamName2).getCreateDate().toString();
-        String getInsertedUpdateDate2 = jdbcRobotTeamRepo.findOne(getInsertedTeamName2).getLastUpdatedDate().toString();
-
-        // Verify that createDate remained the same, but that new updateDate was generated upon update (excluding nanoseconds)
-        Assert.assertTrue("'createdate' is invalid", getInsertedCreateDate2.contains(getInsertedCreateDate1));
-        Assert.assertTrue("'lastupdateddate' is invalid", getInsertedUpdateDate2.contains(dateTimeFormat2.toString()));
+        // Verify that createDate remained the same, but that new updateDate was generated upon update
+        Assert.assertEquals("'createdate' is invalid", createDate1, createDate2);
+        Assert.assertTrue("'lastupdateddate' is invalid", updateDate2.isAfter(updateDate1));
     }
 }

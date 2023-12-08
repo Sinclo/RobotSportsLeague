@@ -45,6 +45,16 @@ public class JdbcRobotTeamRepository implements RobotTeamRepository {
         return robotTeam;
     }
 
+    public RobotTeam update(RobotTeam robotTeam){
+        jdbc.update("UPDATE SportsTeam SET ownerfirstname = ?, ownerlastname = ?, lastUpdatedDate = ? " +
+                        "WHERE teamname = ?",
+                robotTeam.getOwnerFirstName(),
+                robotTeam.getOwnerLastName(),
+                robotTeam.getLastUpdatedDate(),
+                robotTeam.getTeamName());
+        return robotTeam;
+    }
+
     @Override
     public Iterable<RobotTeam> save(Iterable<? extends RobotTeam> iterable) {
         return null;
